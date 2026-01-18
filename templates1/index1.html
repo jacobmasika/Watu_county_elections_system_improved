@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watu County Election Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style1.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; color: #e74c3c;">🗳️ Watu County Election 2026</h1>
+        <p style="text-align: center; color: #7f8c8d; margin-bottom: 30px;">Transparent and Secure Digital Voting</p>
+
+        <!-- TABS NAVIGATION -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab(event, 'register')">Register</button>
+            <button class="tab-button" onclick="switchTab(event, 'verify')">Verify Voter</button>
+            <button class="tab-button" onclick="switchTab(event, 'vote')">Cast Vote</button>
+            <button class="tab-button" onclick="switchTab(event, 'results')">Live Results</button>
+        </div>
+
+        <!-- TAB 1: VOTER REGISTRATION -->
+        <div id="register" class="tab-content active">
+            <div class="card">
+                <h2>📝 Voter Registration</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Register as a new voter to participate in the election.</p>
+                
+                <label for="regVoterId">Voter ID Number:</label>
+                <input type="text" id="regVoterId" placeholder="Enter your ID number (e.g., 12345)">
+
+                <label for="regVoterName">Full Name:</label>
+                <input type="text" id="regVoterName" placeholder="Enter your full name">
+
+                <label for="regVoterEmail">Email Address:</label>
+                <input type="email" id="regVoterEmail" placeholder="Enter your email">
+
+                <label for="regVoterPhone">Phone Number:</label>
+                <input type="tel" id="regVoterPhone" placeholder="Enter your phone number (e.g., +254712345678)">
+
+                <label for="regConstituency">Constituency:</label>
+                <select id="regConstituency" onchange="updateWards('reg')">
+                    <option value="">-- Select Constituency --</option>
+                    <option value="Wapendwa">Wapendwa</option>
+                    <option value="Wasiopenda">Wasiopenda</option>
+                    <option value="Umoja">Umoja</option>
+                    <option value="Amani">Amani</option>
+                    <option value="Nuru">Nuru</option>
+                </select>
+
+                <label for="regWard">Ward:</label>
+                <select id="regWard">
+                    <option value="">Select Constituency first</option>
+                </select>
+
+                <button onclick="registerVoter()" class="btn">Register</button>
+            </div>
+        </div>
+
+        <!-- TAB 2: VERIFY VOTER -->
+        <div id="verify" class="tab-content">
+            <div class="card">
+                <h2>✓ Verify Voter</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Check if you're registered and ready to vote.</p>
+                
+                <label for="verifyVoterId">Voter ID Number:</label>
+                <input type="text" id="verifyVoterId" placeholder="Enter your voter ID">
+
+                <button onclick="verifyVoter()" class="btn">Verify</button>
+                
+                <div id="voterStatus" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <!-- TAB 3: CAST VOTE -->
+        <div id="vote" class="tab-content">
+            <div class="card">
+                <h2>🗳️ Cast Your Vote</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Select a position and candidate, then submit your vote.</p>
+                
+                <label for="voteVoterId">Voter ID Number:</label>
+                <input type="text" id="voteVoterId" placeholder="Enter your voter ID" onblur="verifyVoterForVoting()">
+
+                <div id="voterConfirmation" style="margin-top: 15px;"></div>
+
+                <label for="votePosition">Position:</label>
+                <select id="votePosition" onchange="loadCandidatesByPosition()">
+                    <option value="">-- Select Position --</option>
+                    <option value="Governor">Governor</option>
+                    <option value="Senator">Senator</option>
+                    <option value="MP">Member of Parliament (MP)</option>
+                    <option value="MCA">Member of County Assembly (MCA)</option>
+                </select>
+
+                <label for="voteCandidateId">Choose Candidate:</label>
+                <select id="voteCandidateId">
+                    <option value="">-- Select a position first --</option>
+                </select>
+
+                <button onclick="submitVote()" class="btn">Submit Vote</button>
+                <div id="voteStatus" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- TAB 4: LIVE RESULTS -->
+        <div id="results" class="tab-content">
+            <div class="card">
+                <h2>📊 Live Election Results</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Updated in real-time as votes are cast.</p>
+                
+                <div id="electionSummary" class="summary-box"></div>
+
+                <label for="resultsPosition">Filter by Position:</label>
+                <select id="resultsPosition" onchange="updateResultsDisplay()">
+                    <option value="Governor">Governor</option>
+                    <option value="Senator">Senator</option>
+                    <option value="MP">Member of Parliament (MP)</option>
+                    <option value="MCA">Member of County Assembly (MCA)</option>
+                </select>
+
+                <h3 id="resultsTitle" style="margin-top: 25px;">Governor Results</h3>
+                <input type="text" id="searchInput" placeholder="Search candidates..." onkeyup="filterTable()" style="margin-bottom: 15px;">
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Candidate Name</th>
+                            <th>Position</th>
+                            <th>Party</th>
+                            <th>Votes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                        <tr><td colspan="5" style="text-align: center;">Loading results...</td></tr>
+                    </tbody>
+                </table>
+
+                <p style="text-align: right; color: #7f8c8d; font-size: 0.9em;">
+                    Last Updated: <span id="reportDate">--</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Secure Election System | <a href="/login">Admin Portal</a></p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script1.js') }}"></script>
+    <script>
+        // Tab switching function
+        function switchTab(e, tabName) {
+            e.preventDefault();
+            const contents = document.querySelectorAll('.tab-content');
+            const buttons = document.querySelectorAll('.tab-button');
+            
+            contents.forEach(c => c.classList.remove('active'));
+            buttons.forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(tabName).classList.add('active');
+            e.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

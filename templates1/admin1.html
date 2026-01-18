@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style1.css') }}">
+    <title>Admin Dashboard - Watu County Elections</title>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗳️ Admin Dashboard</h1>
+            <p>Watu County Election Management System</p>
+        </div>
+
+        <!-- ADMIN TABS -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchAdminTab(event, 'overview')">Overview</button>
+            <button class="tab-button" onclick="switchAdminTab(event, 'results')">Results</button>
+            <button class="tab-button" onclick="switchAdminTab(event, 'candidates')">Manage Candidates</button>
+            <button class="tab-button" onclick="switchAdminTab(event, 'audit')">Audit Log</button>
+            <button class="tab-button no-print" onclick="window.print()">Print Report</button>
+            <button class="tab-button no-print" onclick="window.location.href='/logout'" style="background: #e74c3c; color: white;">Logout</button>
+        </div>
+
+        <!-- TAB 1: OVERVIEW -->
+        <div id="overview" class="tab-content active">
+            <div class="card">
+                <h2>📊 Election Overview</h2>
+                <div id="adminStats"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2: RESULTS -->
+        <div id="results" class="tab-content">
+            <div class="card">
+                <h2>🏆 Live Election Results</h2>
+                
+                <label for="adminResultsPosition">Filter by Position:</label>
+                <select id="adminResultsPosition" onchange="updateAdminResultsDisplay()">
+                    <option value="Governor">Governor</option>
+                    <option value="Senator">Senator</option>
+                    <option value="MP">Member of Parliament (MP)</option>
+                    <option value="MCA">Ward Representative (MCA)</option>
+                </select>
+
+                <div class="no-print">
+                    <input type="text" id="searchInput" placeholder="Search candidates..." onkeyup="filterTable()" style="margin-top: 15px;">
+                </div>
+
+                <h3 id="adminResultsTitle" style="margin-top: 25px;">Governor Results</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Candidate Name</th>
+                            <th>Position</th>
+                            <th>Party</th>
+                            <th>Total Votes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                        <tr><td colspan="5" style="text-align: center;">Loading results...</td></tr>
+                    </tbody>
+                </table>
+
+                <p style="text-align: right; color: #7f8c8d; font-size: 0.9em;">
+                    Last Updated: <span id="reportDate">--</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- TAB 3: MANAGE CANDIDATES -->
+        <div id="candidates" class="tab-content">
+            <div class="card no-print">
+                <h2>➕ Add New Candidate</h2>
+                
+                <label for="candName">Candidate Name:</label>
+                <input type="text" id="candName" placeholder="Full name">
+
+                <label for="candPosition">Position:</label>
+                <select id="candPosition">
+                    <option value="">-- Select Position --</option>
+                    <option value="Governor">Governor</option>
+                    <option value="Senator">Senator</option>
+                    <option value="MP">Member of Parliament</option>
+                    <option value="MCA">Ward Representative (MCA)</option>
+                </select>
+
+                <label for="candParty">Political Party:</label>
+                <input type="text" id="candParty" placeholder="Party name">
+
+                <label for="candConstituency">Constituency:</label>
+                <input type="text" id="candConstituency" placeholder="Constituency">
+
+                <button class="btn" onclick="addCandidate()">Add Candidate</button>
+            </div>
+
+            <div class="card">
+                <h2>Registered Candidates</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Position</th>
+                            <th>Party</th>
+                            <th>Constituency</th>
+                            <th class="no-print">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="candidatesTableBody">
+                        <tr><td colspan="5" style="text-align: center;">Loading candidates...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: AUDIT LOG -->
+        <div id="audit" class="tab-content">
+            <div class="card">
+                <h2>🔐 Voting Audit Log</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Complete record of all votes cast (last 100 entries).</p>
+                <div id="auditLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Secure Election System - Admin Panel</p>
+    </footer>
+
+    <script>
+        // Add new candidate
+        async function addCandidate() {
+            const name = document.getElementById("candName").value;
+            const position = document.getElementById("candPosition").value;
+            const party = document.getElementById("candParty").value;
+            const constituency = document.getElementById("candConstituency").value;
+
+            if (!name || !position) {
+                showMessage("Please fill in required fields", "warning");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${window.location.protocol}//${window.location.hostname}:5000/admin/candidates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, position, party, constituency })
+                });
+
+                const data = await response.json();
+                if (data.status === "success") {
+                    showMessage("✅ Candidate added successfully!", "success");
+                    document.getElementById("candName").value = '';
+                    document.getElementById("candPosition").value = '';
+                    document.getElementById("candParty").value = '';
+                    document.getElementById("candConstituency").value = '';
+                    loadCandidatesTable();
+                } else {
+                    showMessage("❌ Error: " + data.message, "error");
+                }
+            } catch (error) {
+                showMessage("Failed to add candidate: " + error.message, "error");
+                console.error("Error:", error);
+            }
+        }
+
+        // Delete candidate
+        async function deleteCandidate(candidateId, candidateName) {
+            if (!confirm(`Are you sure you want to delete ${candidateName}? This will also remove all votes for this candidate.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${window.location.protocol}//${window.location.hostname}:5000/admin/candidates/${candidateId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (data.status === "success") {
+                    showMessage("✅ Candidate deleted successfully!", "success");
+                    loadCandidatesTable();
+                } else {
+                    showMessage("❌ Error: " + data.message, "error");
+                }
+            } catch (error) {
+                showMessage("Failed to delete candidate: " + error.message, "error");
+                console.error("Error:", error);
+            }
+        }
+    </script>
+    <script src="{{ url_for('static', filename='script1.js') }}"></script>
+</body>
+</html>
