@@ -15,17 +15,23 @@ CORS(app)
 # Security & Watu County Database Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'watu-county-secure-2026')
 
+# Determine database URI based on environment
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 # Use environment variable for database, with fallback to local SQLite
 if os.environ.get('DATABASE_URL'):
     # For Render.com deployment
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("postgres://", "postgresql://", 1)
 elif os.environ.get('REPLIT_DB_URL'):
-    # For Replit deployment - use provided database URL if available
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('REPLIT_DB_URL', 'sqlite:///watu_election.db')
+    # For Replit deployment
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('REPLIT_DB_URL')
 else:
-    # For local development - use SQLite
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///watu_election.db'
+    # For local development and Vercel
+    # We use an absolute path to ensure the app finds 'watu_election.db'
+    db_path = os.path.join(basedir, 'watu_election.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
 
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Error handler for all exceptions
