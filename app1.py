@@ -436,7 +436,11 @@ def logout():
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all() 
+        with app.app_context():
+          try:
+            db.create_all()
+          except Exception as e:
+            print(f"Database setup skipped or failed: {e}")
         
         # Optional: Seed sample data
         if Candidate.query.count() == 0:
