@@ -1,7 +1,9 @@
 // ===== WATU COUNTY ELECTION SYSTEM - FRONTEND INTEGRATION =====
 
 // Dynamically determine the API base URL from the current device's IP
-const API_BASE = `http://${window.location.hostname}:5000`;
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? `http://${window.location.hostname}:5000`
+    : '';
 
 const countyData = {
     "Wapendwa": ["Ward A1", "Ward A2", "Ward A3"],
