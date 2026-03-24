@@ -469,7 +469,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     
     # For Replit, use 0.0.0.0 to listen on all interfaces
-    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)k
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
     
 
 
