@@ -20,19 +20,37 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'watu-county-secure-2026
 basedir = os.path.abspath(os.path.dirname(__file__))
 is_vercel = os.environ.get('VERCEL') == '1'
 
+
+def resolve_database_uri():
+    """Resolve DB URL from common providers with Vercel support."""
+    env_candidates = [
+        'DATABASE_URL',
+        'POSTGRES_URL',
+        'POSTGRES_PRISMA_URL',
+        'POSTGRES_URL_NON_POOLING',
+        'REPLIT_DB_URL',
+    ]
+    for key in env_candidates:
+        url = os.environ.get(key)
+        if url:
+            return url.replace('postgres://', 'postgresql://', 1)
+    return None
+
 # Use environment variable for database, with fallback to local SQLite
-if os.environ.get('DATABASE_URL'):
-    # For Render.com deployment
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("postgres://", "postgresql://", 1)
-elif os.environ.get('REPLIT_DB_URL'):
-    # For Replit deployment
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('REPLIT_DB_URL')
+database_uri = resolve_database_uri()
+if database_uri:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 else:
     # Vercel serverless file system is read-only except /tmp.
     db_path = '/tmp/watu_election.db' if is_vercel else os.path.join(basedir, 'watu_election.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+    if is_vercel:
+        print('WARNING: Using ephemeral SQLite on Vercel (/tmp). Set POSTGRES_URL or DATABASE_URL for persistent data.')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+}
 db = SQLAlchemy(app)
 
 # Error handler for all exceptions
