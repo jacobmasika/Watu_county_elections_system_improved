@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 import traceback
 import os
+from threading import Lock
 
 app = Flask(__name__, template_folder='templates1', static_folder='static1')
 
@@ -17,6 +18,7 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'watu-county-secure-2026
 
 # Determine database URI based on environment
 basedir = os.path.abspath(os.path.dirname(__file__))
+is_vercel = os.environ.get('VERCEL') == '1'
 
 # Use environment variable for database, with fallback to local SQLite
 if os.environ.get('DATABASE_URL'):
@@ -26,9 +28,8 @@ elif os.environ.get('REPLIT_DB_URL'):
     # For Replit deployment
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('REPLIT_DB_URL')
 else:
-    # For local development and Vercel
-    # We use an absolute path to ensure the app finds 'watu_election.db'
-    db_path = os.path.join(basedir, 'watu_election.db')
+    # Vercel serverless file system is read-only except /tmp.
+    db_path = '/tmp/watu_election.db' if is_vercel else os.path.join(basedir, 'watu_election.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -80,6 +81,55 @@ class Vote(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     
     __table_args__ = (db.UniqueConstraint('voter_id', 'position', 'constituency', name='unique_vote_per_position'),)
+
+_db_initialized = False
+_db_init_lock = Lock()
+
+
+def seed_sample_candidates():
+    """Seed default candidates when database is empty."""
+    if Candidate.query.count() > 0:
+        return
+
+    sample_candidates = [
+        Candidate(name="John Muthoni", position="Governor", party="UDA", constituency="Watu"),
+        Candidate(name="Sarah Kimani", position="Governor", party="ODM", constituency="Watu"),
+        Candidate(name="David Kiprop", position="Governor", party="KANU", constituency="Watu"),
+        Candidate(name="Peter Kipchoge", position="Senator", party="UDA", constituency="Watu"),
+        Candidate(name="Grace Omondi", position="Senator", party="ODM", constituency="Watu"),
+        Candidate(name="Martha Njeri", position="Senator", party="KANU", constituency="Watu"),
+        Candidate(name="James Muiruri", position="MP", party="UDA", constituency="Watu"),
+        Candidate(name="Rebecca Ochieng", position="MP", party="ODM", constituency="Watu"),
+        Candidate(name="Paul Kiplagat", position="MP", party="KANU", constituency="Watu"),
+        Candidate(name="Samuel Kipchoge", position="MCA", party="UDA", constituency="Watu"),
+        Candidate(name="Alice Moraa", position="MCA", party="ODM", constituency="Watu"),
+        Candidate(name="Charles Lesuuda", position="MCA", party="KANU", constituency="Watu"),
+    ]
+    db.session.add_all(sample_candidates)
+    db.session.commit()
+
+
+def initialize_database():
+    """Create DB tables and seed baseline data once per runtime."""
+    global _db_initialized
+    if _db_initialized:
+        return
+
+    with _db_init_lock:
+        if _db_initialized:
+            return
+        with app.app_context():
+            try:
+                db.create_all()
+                seed_sample_candidates()
+                _db_initialized = True
+            except Exception as e:
+                print(f"Database initialization failed: {e}")
+
+
+@app.before_request
+def ensure_database_ready():
+    initialize_database()
 
 # --- ROUTES ---
 
@@ -435,33 +485,7 @@ def logout():
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
-    with app.app_context():
-        with app.app_context():
-          try:
-            db.create_all()
-          except Exception as e:
-            print(f"Database setup skipped or failed: {e}")
-        
-        # Optional: Seed sample data
-        if Candidate.query.count() == 0:
-            sample_candidates = [
-                Candidate(name="John Muthoni", position="Governor", party="UDA", constituency="Watu"),
-                Candidate(name="Sarah Kimani", position="Governor", party="ODM", constituency="Watu"),
-                Candidate(name="David Kiprop", position="Governor", party="KANU", constituency="Watu"),
-                Candidate(name="Peter Kipchoge", position="Senator", party="UDA", constituency="Watu"),
-                Candidate(name="Grace Omondi", position="Senator", party="ODM", constituency="Watu"),
-                Candidate(name="Martha Njeri", position="Senator", party="KANU", constituency="Watu"),
-                Candidate(name="James Muiruri", position="MP", party="UDA", constituency="Watu"),
-                Candidate(name="Rebecca Ochieng", position="MP", party="ODM", constituency="Watu"),
-                Candidate(name="Paul Kiplagat", position="MP", party="KANU", constituency="Watu"),
-                Candidate(name="Samuel Kipchoge", position="MCA", party="UDA", constituency="Watu"),
-                Candidate(name="Alice Moraa", position="MCA", party="ODM", constituency="Watu"),
-                Candidate(name="Charles Lesuuda", position="MCA", party="KANU", constituency="Watu"),
-            ]
-            for candidate in sample_candidates:
-                db.session.add(candidate)
-            db.session.commit()
-            print("Sample candidates added successfully")
+    initialize_database()
     
     print("Election System Backend is running...")
     
